@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://www.springframework.org/schema/integration"
+	xmlns:ip="http://www.springframework.org/schema/integration/ip"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/integration/ip https://www.springframework.org/schema/integration/ip/spring-integration-ip.xsd
+		http://www.springframework.org/schema/integration https://www.springframework.org/schema/integration/spring-integration.xsd">
+
+	<beans:description>
+		Uses conversion service and collaborating channel adapters.
+	</beans:description>
+
+	<context:property-placeholder />
+
+	<converter>
+		<beans:bean class="org.springframework.integration.samples.tcpclientserver.ByteArrayToStringConverter" />
+	</converter>
+
+	<beans:bean id="fastestWireFormatSerializer" class="org.springframework.integration.ip.tcp.serializer.ByteArrayCrLfSerializer">
+	</beans:bean>
+
+	<beans:bean id="runMethod" class="org.springframework.integration.samples.tcpclientserver.Main">
+	</beans:bean>
+
+	<!-- Client side -->
+	<ip:tcp-connection-factory id="clientConnFactory"
+		type="client"
+		host="localhost"
+		port="8080"
+		single-use="false"
+		serializer="fastestWireFormatSerializer"
+		deserializer="fastestWireFormatSerializer"
+		so-timeout="10000" />
+
+	<beans:bean id="cacheTcp" class="org.springframework.integration.ip.tcp.connection.CachingClientConnectionFactory">
+		<beans:constructor-arg ref="clientConnFactory" />
+		<beans:constructor-arg value="10" />
+		<beans:property name="connectionWaitTimeout" value="1200"/>
+	</beans:bean>
+
+	<channel id="inbound" />
+	<channel id="outbound" />
+
+	<ip:tcp-outbound-channel-adapter id="outAdapter.client"
+		channel="outbound"
+		auto-startup="true"
+		connection-factory="cacheTcp" />
+
+	<!-- Async receive reply -->
+	<ip:tcp-inbound-channel-adapter id="inAdapter.client"
+		channel="inbound"
+		auto-startup="true"
+		connection-factory="cacheTcp" />
+
+	<service-activator input-channel="inbound" ref="runMethod" method="run" />
+</beans:beans>
